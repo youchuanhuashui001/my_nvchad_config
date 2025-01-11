@@ -1,0 +1,290 @@
+diff --git a/init.lua b/init.lua
+index 0fda20c..d376541 100644
+--- a/init.lua
++++ b/init.lua
+@@ -23,6 +23,70 @@ require("lazy").setup({
+   },
+ 
+   { import = "plugins" },
++
++  {
++    "ntpeters/vim-better-whitespace",
++    lazy = false,
++    config = function()
++      vim.g.better_whitespace_ctermcolor = 'red'
++      vim.g.better_whitespace_guicolor = '#FF0000'
++      vim.g.better_whitespace_enabled = 1
++      -- 保存时自动删除多余空格（可选)
++      vim.g.strip_whitespace_on_save = 1
++      -- 保存时显示确认提示（可选）
++      vim.g.strip_whitespace_confirm = 1
++      -- 忽略特定文件类型
++      vim.g.better_whitespace_filetypes_blacklist = {
++        'diff',
++        'git',
++        'gitcommit',
++        'unite',
++        'qf',
++        'help',
++        'markdown',
++        'TelescopePrompt',
++        'mason',
++        'lazy',
++        'NvimTree',
++      }
++    end,
++  },
++
++  -- 先确保 treesitter 安装
++  {
++    "nvim-treesitter/nvim-treesitter",
++    lazy = false,
++    priority = 1000,
++  },
++
++  -- 使用最新的彩虹括号插件
++  {
++    "HiPhish/rainbow-delimiters.nvim",
++    event = "BufRead",
++    dependencies = "nvim-treesitter/nvim-treesitter",
++    config = function()
++      local rainbow_delimiters = require('rainbow-delimiters')
++
++      vim.g.rainbow_delimiters = {
++        strategy = {
++          [''] = rainbow_delimiters.strategy['global'],
++        },
++        query = {
++          [''] = 'rainbow-delimiters',
++          lua = 'rainbow-blocks',
++        },
++        highlight = {
++          'RainbowDelimiterRed',
++          'RainbowDelimiterOrange',
++          'RainbowDelimiterYellow',
++          'RainbowDelimiterGreen',
++          'RainbowDelimiterCyan',
++          'RainbowDelimiterBlue',
++          'RainbowDelimiterViolet',
++        },
++      }
++    end,
++  },
+ }, lazy_config)
+ 
+ -- load theme
+diff --git a/lua/chadrc.lua b/lua/chadrc.lua
+index c82dca1..75066fa 100644
+--- a/lua/chadrc.lua
++++ b/lua/chadrc.lua
+@@ -8,10 +8,10 @@ local M = {}
+ M.base46 = {
+ 	theme = "onedark",
+ 
+-	-- hl_override = {
+-	-- 	Comment = { italic = true },
+-	-- 	["@comment"] = { italic = true },
+-	-- },
++	hl_override = {
++		Comment = { italic = true },
++		["@comment"] = { italic = true },
++	},
+ }
+ 
+ return M
+diff --git a/lua/configs/lspconfig.lua b/lua/configs/lspconfig.lua
+index 478df01..e01dceb 100644
+--- a/lua/configs/lspconfig.lua
++++ b/lua/configs/lspconfig.lua
+@@ -2,23 +2,23 @@
+ require("nvchad.configs.lspconfig").defaults()
+ 
+ local lspconfig = require "lspconfig"
+-
+--- EXAMPLE
+-local servers = { "html", "cssls" }
+ local nvlsp = require "nvchad.configs.lspconfig"
+ 
+--- lsps with default config
++local servers = { "html", "cssls", "lua_ls" }
++
+ for _, lsp in ipairs(servers) do
+-  lspconfig[lsp].setup {
+-    on_attach = nvlsp.on_attach,
+-    on_init = nvlsp.on_init,
+-    capabilities = nvlsp.capabilities,
+-  }
++        lspconfig[lsp].setup {
++                on_attach = nvlsp.on_attach,
++                on_init = nvlsp.on_init,
++                capabilities = nvlsp.capabilities,
++        }
+ end
+ 
+--- configuring single server, example: typescript
+--- lspconfig.ts_ls.setup {
+---   on_attach = nvlsp.on_attach,
+---   on_init = nvlsp.on_init,
+---   capabilities = nvlsp.capabilities,
+--- }
++lspconfig.clangd.setup {
++        on_attach = nvlsp.on_attach,
++        on_init = nvlsp.on_init,
++        capabilities = nvlsp.capabilities,
++        handlers = {
++                ["textDocument/publishDiagnostics"] = function() end,
++        },
++}
+diff --git a/lua/mappings.lua b/lua/mappings.lua
+index 783b78f..d77e2f1 100644
+--- a/lua/mappings.lua
++++ b/lua/mappings.lua
+@@ -1,10 +1,28 @@
+ require "nvchad.mappings"
+ 
+--- add yours here
+-
+ local map = vim.keymap.set
+ 
+ map("n", ";", ":", { desc = "CMD enter command mode" })
+ map("i", "jk", "<ESC>")
+ 
+--- map({ "n", "i", "v" }, "<C-s>", "<cmd> w <cr>")
++-- Vista快捷键
++map("n", "ee", "<cmd>Vista!!<CR>", { desc = "Toggle Vista", silent = true })
++
++-- 修改目录树快捷键为切换模式
++map("n", "<leader>e", "<cmd>NvimTreeToggle<CR>", { desc = "Toggle nvimtree", silent = true })
++
++-- LSP 导航
++map("n", "gd", "<cmd>lua vim.lsp.buf.definition()<CR>", { desc = "跳转到定义" })
++map("n", "gr", "<cmd>lua vim.lsp.buf.references()<CR>", { desc = "查看引用" })
++map("n", "K", "<cmd>lua vim.lsp.buf.hover()<CR>", { desc = "显示文档" })
++map("n", "<leader>rn", "<cmd>lua vim.lsp.buf.rename()<CR>", { desc = "重命名" })
++
++-- Tags 导航
++map("n", "<C-]>", "g<C-]>", { desc = "跳转到定义(多选)" })
++map("n", "<C-t>", "<C-o>", { desc = "返回上一位置" })
++
++-- 高亮当前单词
++map("n", "\\m", "<Plug>MarkSet", { desc = "高亮当前单词" })
++map("x", "\\m", "<Plug>MarkSet", { desc = "高亮选中文本" })
++map("n", "\\r", "<Plug>MarkRegex", { desc = "使用正则表达式高亮" })
++map("n", "\\c", "<Plug>MarkAllClear", { desc = "清除所有高亮" })
+diff --git a/lua/options.lua b/lua/options.lua
+index 738f20b..7546341 100644
+--- a/lua/options.lua
++++ b/lua/options.lua
+@@ -4,3 +4,20 @@ require "nvchad.options"
+ 
+ -- local o = vim.o
+ -- o.cursorlineopt ='both' -- to enable cursorline!
++
++local opt = vim.o
++
++-- 示例配置
++opt.fileencoding = "utf-8"        -- 文件编码
++opt.expandtab = false            -- 使用真实的tab字符，而不是空格
++opt.shiftwidth=8
++opt.tabstop=8
++opt.softtabstop=8
++opt.number = true                -- 显示行号
++opt.cursorlineopt ='both'        -- 启用光标线
++
++-- 添加到现有配置中
++vim.cmd([[
++        autocmd BufRead,BufNewFile *.h set filetype=c
++        autocmd BufRead,BufNewFile *.hpp set filetype=cpp
++]])
+diff --git a/lua/plugins/init.lua b/lua/plugins/init.lua
+index 6474776..b8bade6 100644
+--- a/lua/plugins/init.lua
++++ b/lua/plugins/init.lua
+@@ -22,4 +22,87 @@ return {
+   -- 		},
+   -- 	},
+   -- },
++
++  -- 示例：添加中文输入法自动切换
++  {
++    "h-hg/fcitx.nvim",
++    lazy = false,
++  },
++
++  -- 添加Vista插件用于显示函数列表
++  {
++    "liuchengxu/vista.vim",
++    cmd = "Vista",
++    init = function()
++      -- Vista配置
++      vim.g.vista_default_executive = 'nvim_lsp'  -- 使用nvim-lsp
++      vim.g.vista_executive_for = {
++        c = 'ctags',              -- 对C文件使用ctags
++        cpp = 'ctags',            -- 对C++文件使用ctags
++      }
++      vim.g.vista_sidebar_width = 45              
++      vim.g.vista_echo_cursor = 0                 
++      vim.g.vista_stay_on_open = 0               
++      vim.g.vista_icon_indent = {"╰─▸ ", "├─▸ "} 
++      vim.g.vista_update_on_text_changed = 1      
++    end,
++  },
++
++  -- 添加vim-mark插件用于高亮单词
++  {
++    "Yggdroot/vim-mark",
++    lazy = false,
++    init = function()
++      -- vim-mark配置
++      vim.g.mw_no_mappings = 1  -- 禁用默认键位
++    end,
++  },
++
++  {
++    "nvim-telescope/telescope.nvim",
++    dependencies = {
++      "nvim-lua/plenary.nvim",
++      "nvim-telescope/telescope-ui-select.nvim",
++      "nvim-telescope/telescope-live-grep-args.nvim",
++    },
++    cmd = "Telescope",
++    init = function()
++      require("telescope").setup({
++        defaults = {
++          layout_strategy = "horizontal",
++          layout_config = {
++            horizontal = {
++              prompt_position = "top",
++              preview_width = 0.6,
++              results_width = 0.8,
++            },
++            width = 0.87,
++            height = 0.80,
++            preview_cutoff = 120,
++          },
++          path_display = { "truncate" },
++          sorting_strategy = "ascending",
++        },
++        -- 添加 ctags 配置
++        pickers = {
++          tags = {
++            only_sort_tags = true,
++            fname_width = 60,
++            show_line = true,
++          },
++          -- 定义跳转也使用 tags
++          lsp_definitions = {
++            jump_type = "never",  -- 禁止直接跳转
++          },
++        },
++        extensions = {
++          ["ui-select"] = {
++            require("telescope.themes").get_dropdown(),
++          },
++        },
++      })
++      require("telescope").load_extension("ui-select")
++    end,
++  },
+ }
++
